@@ -8,6 +8,30 @@
  *
  */
 
+ function promptForNumber(message)
+ {
+    var num;
+    do {
+      num = prompt(message);
+    } while (isNaN(num) || num == "" || num < 1);
+
+    return num;
+ }
+
+ isis.Agent.prototype.canAfford = function(amount) {
+    return this.money >= amount;
+ };
+
+ isis.Agent.prototype.spendMoney = function(amount) {
+    if (this.canAfford(amount))
+      this.money -= amount;
+ };
+
+ isis.Agent.prototype.earnMoney = function(amount) {
+    this.money += amount;
+ };
+
+
 /*************************/
 /****    isis.Game    ****/
 /*************************/
@@ -24,6 +48,8 @@
  */
 isis.Game.prototype.changeCity = function(newCity) {
   console.log('trying to change city to ' + newCity.name);
+  this.currentCity = newCity;
+  this.refreshViews();
 }
 
 /*
@@ -38,6 +64,24 @@ isis.Game.prototype.changeCity = function(newCity) {
  */
 isis.Game.prototype.buyItem = function(item) {
   console.log('trying to buy ' + item.name);
+
+  var qty = promptForNumber("How many of " + item.name + " do you want?")
+  var amount = item.currentPrice * qty;
+
+  if (!this.agent.canAfford(amount)) {
+    alert("You can't afford $" + amount + ".")
+    return; 
+  }
+
+  var yes = confirm("Please confirm you want " + qty + " of " + 
+    item.name + " for $" + amount);
+
+  if (yes) {
+    this.agent.spendMoney(amount);
+    this.agent.inventory.push(item, qty);
+  }
+
+  this.refreshViews();
 }
 
 /**
@@ -57,6 +101,26 @@ isis.Game.prototype.buyItem = function(item) {
 isis.Game.prototype.sellItem = function(inventoryItem) {
   var value = inventoryItem.item.currentPrice * inventoryItem.quantity;
   console.log('trying to sell ' + inventoryItem.item.name + ', I have ' + inventoryItem.quantity + ' worth $' + value);
+
+  var invalid = true;
+  while (invalid) {
+    var qty = promptForNumber("How many of " + inventoryItem.item.name + " do you want to sell?")
+    if (qty < 1) {
+      alert("Please enter a number 1 or greater");
+    }
+    else if (qty > inventoryItem.quantity) {
+      alert("You only have " + inventoryItem.quantity);
+    }
+    else {
+      invalid = false;
+    }
+  }
+
+  var amount = qty * inventoryItem.item.currentPrice;
+  this.agent.inventory.pop(inventoryItem.item, qty);
+  this.agent.earnMoney(amount);
+
+  this.refreshViews();
 }
 
 
@@ -74,9 +138,10 @@ isis.Game.prototype.sellItem = function(inventoryItem) {
  */
 isis.Game.prototype.initBadThings = function(badThings) {
   badThings.push({
-    name: "Temporary bad thing!",
+    name: "Kiss from the Don!",
     ohNoes: function(agent) {
-      alert("This is a demo bad thing, luckily nothing bad happened this time!");
+      alert("The Mafia has given you a deal you can't refuse. You lose 95% of your money.");
+      agent.money = agent.money * 0.02;
     }
   });
   
@@ -106,7 +171,14 @@ isis.Game.prototype.initBadThings = function(badThings) {
  * If the player has more than $5000 then they should be ranked as a 'Double-0'.
  */
 isis.Agent.prototype.getRank = function(item) { 
-  return 'Agent';
+  if (this.money < 500)
+    return "Rookie";
+  if (this.money < 1000)
+    return "Agent";
+  if (this.money < 5000)
+    return "Top Agent";
+  if (this.money >= 5000)
+    return "Double-0";
 }
 
 /*
@@ -118,8 +190,8 @@ isis.Agent.prototype.getRank = function(item) {
  * Use prompt() to get user input.
  */
 isis.Agent.prototype.init = function(item) { 
-  this.name = 'Sterling Archer'; // This should be set by the user
-  this.codename = 'Dutchess'; // This too
+  this.name = prompt("What is your name, agent?"); // This should be set by the user
+  this.codename = prompt("And your codename?"); // This too
 }
 
 
